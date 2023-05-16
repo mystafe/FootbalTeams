@@ -1,5 +1,6 @@
 ﻿using FootbalTeams.Contexts;
-using FootbalTeams.Models.DTO;
+using FootbalTeams.Models.DTO.CityDto;
+using FootbalTeams.Models.DTO.TeamDto;
 using FootbalTeams.Models.ORM;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -21,29 +22,43 @@ namespace FootbalTeams.Controllers
         [HttpGet]
         public IActionResult GetCities()
         {
-            List<City> cities = context.Cities.AsQueryable().ToList();            
-            if (cities != null)
+            List<CityResponseDto> results = context.Cities.Include(c=>c.Teams).Include(c=>c.Country).Select(c=>new CityResponseDto() 
+            { CityName=c.Name, 
+                CountryName=c.Country!=null?c.Country.Name:String.Empty,
+                TeamNames= c.Teams==null?null:
+                                         c.Teams.Select(t=>new TeamNameDto(){TeamName=t.Name}
+                ).ToList()
+            }).ToList();            
+            if (results != null)
             {
-                return Ok(cities);
+
+                return Ok(results);
 
             }
             else return NotFound();
         }
+
+        
 
 
         [HttpGet("{id}")]
         public IActionResult GetCity(int id)
         {
-            City city = context.Cities.Find(id);
+            City city = context.Cities.Include("Country").AsQueryable().FirstOrDefault(c=>c.Id==id);
             if (city != null)
             {
-                return Ok(city);
+                CityResponseDto result = new CityResponseDto()
+                { CityName =city.Name,
+                    CountryName=city.Country!=null? city.Country.Name:String.Empty,
+                   TeamNames= city.Teams==null?null:city.Teams.Select(t=>new TeamNameDto() { TeamName=t.Name}).ToList()
+                };
+                return Ok(result);
             }
             else return NotFound();
         }
 
         [HttpPost]
-        public IActionResult Post(CityCreateDTO model)
+        public IActionResult Post( CityCreateDTO model)
         {
             City city = new City();
             city.CountryId = model.CountryId;

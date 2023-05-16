@@ -1,5 +1,5 @@
 ﻿using FootbalTeams.Contexts;
-using FootbalTeams.Models.DTO;
+using FootbalTeams.Models.DTO.StadiumDto;
 using FootbalTeams.Models.ORM;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -21,20 +21,30 @@ namespace FootbalTeams.Controllers
         [HttpGet]
         public IActionResult GetStadiums()
         {
-            List<Stadium> stadiums = context.Stadiums.ToList();
-            if (stadiums.Count > 0)
-                return Ok(stadiums);
+            List<StadiumResponseDTO> results= context.Stadiums.Include("City").Include("Team").Select(s=>new StadiumResponseDTO() { StadiumName=s.Name,
+                CityName=s.City!=null?s.City.Name:String.Empty,
+                 TeamName= s.Team!=null?s.Team.Name: String.Empty
+            }).ToList();
+
+            if (results.Count > 0)
+                return Ok(results);
             else return BadRequest();
         }
         [HttpGet("{id}")]
         public IActionResult GetStadiumById(int id)
         {
 
-            Stadium stadium = context.Stadiums.Find(id);
+            Stadium stadium = context.Stadiums.Include("Team").Include("City").FirstOrDefault(s=>s.Id==id);
             if (stadium == null)
             {
                 return NotFound();
             }
+            StadiumResponseDTO result=new StadiumResponseDTO()
+            {
+                 StadiumName = stadium.Name,
+                 CityName=stadium.City!=null?stadium.City.Name:string.Empty,
+                  TeamName=stadium.Team!=null ? stadium.Team.Name:string.Empty
+            };
             return Ok(stadium);
         }
 

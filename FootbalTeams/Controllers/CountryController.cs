@@ -1,7 +1,8 @@
 ﻿using FootbalTeams.Contexts;
-using FootbalTeams.Models.DTO;
+using FootbalTeams.Models.DTO.CountryDto;
 using FootbalTeams.Models.ORM;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FootbalTeams.Controllers
 {
@@ -17,11 +18,15 @@ namespace FootbalTeams.Controllers
         [HttpGet]
         public IActionResult  GetCountries()
         {
-
-            List<Country> countries = context.Countries.AsQueryable().ToList();
-            if (countries.Count>0)
+            List<CountryResponseDto> results = context.Countries.Include(c=>c.Cities).Select(c=> new CountryResponseDto() 
+            { 
+                CountryName=c.Name, 
+                CityNames=c.Cities==null ? null : c.Cities.Select(ct=>new CityNameDto() { CityName=ct.Name}).ToList()
+            }
+            ).ToList();
+            if (results.Count>0)
             {
-                return Ok(countries);
+                return Ok(results);
             }
             return NotFound();
         }
@@ -33,7 +38,9 @@ namespace FootbalTeams.Controllers
   
             if (country != null)
             {
-                return Ok(country);
+                CountryResponseDto result = new CountryResponseDto() { CountryName = country.Name, CityNames = country.Cities.Select(c => new CityNameDto() { CityName = c.Name }).ToList() };
+
+                return Ok(result);
             }
             else
                 return NotFound();   
@@ -42,10 +49,18 @@ namespace FootbalTeams.Controllers
         [HttpPost]
         public IActionResult CreateCounty(CountryCreateDTO model) {
         
-            Country country=new Country() { Name = model.Name };
-            context.Countries.Add(country);
-            context.SaveChanges();
-            if (model!=null) return Ok(country);
+            if (ModelState.IsValid&&model!=null) {
+                Country country = new Country() { Name = model.Name };
+                context.Countries.Add(country);
+                context.SaveChanges();
+                CountryResponseDto result = new CountryResponseDto()
+                {
+                    CountryName = country.Name,
+                    CityNames = country.Cities.Select(c => new CityNameDto() { CityName = c.Name }).ToList()
+                };
+                return Ok(result);
+
+            }
             else return BadRequest();
         }
 
@@ -68,10 +83,14 @@ namespace FootbalTeams.Controllers
         public IActionResult Delete(int id)
         {
             Country country = context.Countries.Find(id);
-            if (country == null)    return NotFound();      
+
+            if (country == null)    return NotFound();
+            CountryResponseDto result = new CountryResponseDto();
+
+            result.CountryName =country.Name;
             context.Countries.Remove(country);
             context.SaveChanges();
-            return Ok(country);
+            return Ok(result);
           
         }
     }

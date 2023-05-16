@@ -1,10 +1,12 @@
 ﻿using FootbalTeams.Contexts;
-using FootbalTeams.Models.DTO;
+using FootbalTeams.Models.DTO.PlayerDto;
 using FootbalTeams.Models.ORM;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using System.Collections.Generic;
+using System.Xml;
 
 namespace FootbalTeams.Controllers
 {
@@ -21,11 +23,23 @@ namespace FootbalTeams.Controllers
             context = _context;
         }
 
-
         [HttpGet]
-        public IActionResult  Get()
+        public IActionResult Get()
         {
-            List<Player> players=context.Players.AsQueryable().ToList();
+            List<PlayerResponseDto> players = context.Players.Include("Team").Include("City").AsQueryable().Select(t => new PlayerResponseDto()
+            {
+                PlayerName = t.Name,
+                PlayerSurname = t.Surname,
+                PlayerPosition = t.PlayerPosition,
+                AttackPower = t.AttackPower,
+                DefencePower = t.DefencePower,
+
+                CityName = t.City!=null?t.City.Name:string.Empty,
+                GoalkeepingPower = t.GoalkeepingPower,
+                TeamName = t.Team!=null?t.Team.Name:string.Empty,
+               
+
+            }).ToList();
             if (players.Count > 0)
             {
                 return Ok(players);
@@ -38,14 +52,25 @@ namespace FootbalTeams.Controllers
         [HttpGet("{id}")]
         public IActionResult Get(int id)
         {
-            Player player = context.Players.Find(id);
+            Player player = context.Players.Include(p=>p.City).Include(p=>p.Team).AsQueryable().FirstOrDefault(p=>p.Id==id);
             if (player == null)
             {
                 return NoContent();
             }
             else
             {
-                return Ok(player);
+                PlayerResponseDto result = new PlayerResponseDto()
+                {
+                    PlayerName = player.Name,
+                    PlayerSurname = player.Surname,
+                    CityName = player.City != null ? player.City.Name : String.Empty,
+                    TeamName = player.Team != null ? player.Team.Name : String.Empty,
+                    PlayerPosition = player.PlayerPosition,
+                    GoalkeepingPower = player.GoalkeepingPower,
+                    DefencePower = player.DefencePower,
+                    AttackPower = player.AttackPower,
+                };
+                return Ok(result);
             }
         }
         [HttpPost]
@@ -71,6 +96,9 @@ namespace FootbalTeams.Controllers
                 context.Players.Add(player);
                 try
                 {
+                   Team team = context.Teams.Include("Players").Where(t => t.Id == player.TeamId).FirstOrDefault();
+                   List<Player> player1=new List<Player>();
+                   team.SetPower();
                     context.SaveChanges();
                     return Ok(player);
                 }
@@ -111,6 +139,8 @@ namespace FootbalTeams.Controllers
                 player.DefencePower = model.DefencePower;
                 player.GoalkeepingPower = model.GoalkeepingPower;
                 player.TeamId= model.TeamId;
+                Team team = context.Teams.Find(player.TeamId);
+                team.SetPower();
                 context.SaveChanges();
                 return Ok(player);
             }
@@ -129,6 +159,40 @@ namespace FootbalTeams.Controllers
                 context.SaveChanges();
                 return Ok(player);
             }
+        }
+
+        [HttpPost("set/{id}")]
+        public IActionResult SetPower(int id, [FromBody] PlayerCreateDTO model)
+        {
+            Player player = context.Players.Find(id);
+            if (player == null)
+            {
+                return NotFound();
+            }
+            else if (!ModelState.IsValid) return BadRequest();
+            else
+            {
+                player.GoalkeepingPower = model.GoalkeepingPower;
+                player.DefencePower=model.DefencePower;
+                player.AttackPower = model.AttackPower;
+                Team team=context.Teams.Find(player.TeamId);
+   
+                team.SetPower();
+                context.SaveChanges();
+                PlayerResponseDto result=new PlayerResponseDto() { 
+                    PlayerName=player.Name,
+                     PlayerSurname=player.Surname,
+                      CityName=player.City==null?String.Empty:player.City.Name,
+                       TeamName=team.Name,
+                        PlayerPosition=player.PlayerPosition,
+                         GoalkeepingPower=player.GoalkeepingPower,
+                          DefencePower = player.DefencePower,
+                           AttackPower=player.AttackPower,
+                       
+                };
+                return Ok(result);
+            }
+
         }
     }
 }

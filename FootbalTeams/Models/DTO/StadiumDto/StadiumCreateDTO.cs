@@ -1,4 +1,4 @@
-﻿namespace FootbalTeams.Models.DTO
+﻿namespace FootbalTeams.Models.DTO.StadiumDto
 {
     public class StadiumCreateDTO
     {

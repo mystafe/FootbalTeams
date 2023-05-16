@@ -1,6 +1,6 @@
 ﻿using FootbalTeams.Models.ORM;
 
-namespace FootbalTeams.Models.DTO
+namespace FootbalTeams.Models.DTO.PlayerDto
 {
     public class PlayerCreateDTO
     {
